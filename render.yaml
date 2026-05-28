@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: api-eventos-django
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: SECRET_KEY
+        value: django-secret-key
+
+      - key: DB_NAME
+        value: eventos_vluw
+
+      - key: DB_USER
+        value: eventos_vluw_user
+
+      - key: DB_PASSWORD
+        value: TU_PASSWORD
+
+      - key: DB_HOST
+        value: TU_HOST
+
+      - key: DB_PORT
+        value: 5432
