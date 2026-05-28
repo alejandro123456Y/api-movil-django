@@ -1,21 +1,28 @@
-from rest_framework import generics
-from rest_framework.views import APIView
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.db.models import Count, Sum
+from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
-from django.db.models import Sum, Count
-from django.contrib.auth.models import User
+from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import Evento, Reservacion
-from .serializers import EventoSerializer, ReservacionSerializer, UserSerializer
+from .serializers import (
+    CustomTokenObtainPairSerializer,
+    EventoSerializer,
+    ReservacionSerializer,
+    UserSerializer,
+)
 
 
-# =========================
-# EVENTOS CRUD
-# =========================
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
 
 class EventoListView(generics.ListAPIView):
-    queryset = Evento.objects.all()
+    queryset = Evento.objects.all().order_by("fecha", "hora", "id")
     serializer_class = EventoSerializer
     permission_classes = [IsAuthenticated]
 
@@ -37,15 +44,28 @@ class EventoDeleteView(generics.DestroyAPIView):
     serializer_class = EventoSerializer
     permission_classes = [IsAuthenticated]
 
+    def destroy(self, request, *args, **kwargs):
+        super().destroy(request, *args, **kwargs)
+        return Response(
+            {"detail": "Evento eliminado correctamente."},
+            status=status.HTTP_200_OK,
+        )
 
-# =========================
-# RESERVACIONES
-# =========================
 
 class ReservacionListView(generics.ListAPIView):
-    queryset = Reservacion.objects.all()
     serializer_class = ReservacionSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Reservacion.objects.select_related("usuario", "evento").order_by(
+            "-fecha_reservacion",
+            "-id",
+        )
+
+        if self.request.user.is_staff:
+            return queryset
+
+        return queryset.filter(usuario=self.request.user)
 
 
 class CrearReservacionView(generics.CreateAPIView):
@@ -53,22 +73,21 @@ class CrearReservacionView(generics.CreateAPIView):
     serializer_class = ReservacionSerializer
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
     def perform_create(self, serializer):
-        evento = serializer.validated_data['evento']
-        cantidad = serializer.validated_data['cantidad']
+        evento_id = serializer.validated_data["evento"].id
+        cantidad = serializer.validated_data["cantidad"]
+        evento = Evento.objects.select_for_update().get(id=evento_id)
 
         if evento.cupos_disponibles < cantidad:
-            raise Exception("No hay cupos disponibles")
+            raise ValidationError(
+                {"detail": "No hay cupos disponibles para esa cantidad."}
+            )
 
         evento.cupos_disponibles -= cantidad
-        evento.save()
+        evento.save(update_fields=["cupos_disponibles"])
+        serializer.save(usuario=self.request.user, evento=evento)
 
-        serializer.save(usuario=self.request.user)
-
-
-# =========================
-# USUARIOS (CRUD ADMIN)
-# =========================
 
 class UserCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -76,43 +95,32 @@ class UserCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
 
-# =========================
-# DASHBOARD + GRÁFICAS
-# =========================
-
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        reservas_por_evento = Reservacion.objects.values("evento__nombre").annotate(
+            total=Sum("cantidad")
+        )
+        eventos_por_fecha = Evento.objects.values("fecha").annotate(total=Count("id"))
+        evento_top = (
+            Reservacion.objects.values("evento__nombre")
+            .annotate(total=Sum("cantidad"))
+            .order_by("-total")
+            .first()
+        )
 
-        total_eventos = Evento.objects.count()
-        total_reservaciones = Reservacion.objects.count()
-        total_usuarios = User.objects.count()
-
-        # gráfico 1: reservas por evento
-        reservas_por_evento = Reservacion.objects.values(
-            'evento__nombre'
-        ).annotate(total=Sum('cantidad'))
-
-        # gráfico 2: eventos por fecha
-        eventos_por_fecha = Evento.objects.values(
-            'fecha'
-        ).annotate(total=Count('id'))
-
-        # evento más popular
-        evento_top = Reservacion.objects.values(
-            'evento__nombre'
-        ).annotate(total=Sum('cantidad')).order_by('-total').first()
-
-        return Response({
-            "totales": {
-                "eventos": total_eventos,
-                "reservaciones": total_reservaciones,
-                "usuarios": total_usuarios
-            },
-            "graficas": {
-                "reservas_por_evento": reservas_por_evento,
-                "eventos_por_fecha": eventos_por_fecha
-            },
-            "top_evento": evento_top
-        })
+        return Response(
+            {
+                "totales": {
+                    "eventos": Evento.objects.count(),
+                    "reservaciones": Reservacion.objects.count(),
+                    "usuarios": User.objects.count(),
+                },
+                "graficas": {
+                    "reservas_por_evento": list(reservas_por_evento),
+                    "eventos_por_fecha": list(eventos_por_fecha),
+                },
+                "top_evento": evento_top,
+            }
+        )
