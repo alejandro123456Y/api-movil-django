@@ -7,10 +7,23 @@ from rest_framework_simplejwt.views import (
 )
 
 urlpatterns = [
+
     path('admin/', admin.site.urls),
 
-    path('api/login/', TokenObtainPairView.as_view()),
-    path('api/token/refresh/', TokenRefreshView.as_view()),
-
+    # API EVENTOS
     path('api/', include('eventos.urls')),
+
+    # JWT LOGIN
+    path(
+        'api/login/',
+        TokenObtainPairView.as_view(),
+        name='token_obtain_pair'
+    ),
+
+    # REFRESH TOKEN
+    path(
+        'api/refresh/',
+        TokenRefreshView.as_view(),
+        name='token_refresh'
+    ),
 ]
