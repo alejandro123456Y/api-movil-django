@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | Panel de eventos{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/custom_admin.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div class="brand-lockup">
+    <span class="brand-mark">E</span>
+    <div>
+        <h1 id="site-name">
+            <a href="{% url 'admin:index' %}">Panel de eventos</a>
+        </h1>
+        <p>Gestion de eventos y reservaciones</p>
+    </div>
+</div>
+{% endblock %}
