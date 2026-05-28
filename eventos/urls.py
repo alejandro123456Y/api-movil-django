@@ -10,29 +10,24 @@ from .views import (
     UserCreateView
 )
 
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView
-)
-
 urlpatterns = [
-    # AUTH
-    path('api/login/', TokenObtainPairView.as_view()),
-    path('api/token/refresh/', TokenRefreshView.as_view()),
+
+    # AUTH (NO DUPLIQUES LOGIN AQUÍ)
+    # path('login/', ... ) ❌ eliminar aquí
 
     # EVENTOS
-    path('api/eventos/', EventoListView.as_view()),
-    path('api/eventos/crear/', EventoCreateView.as_view()),
-    path('api/eventos/editar/<int:pk>/', EventoUpdateView.as_view()),
-    path('api/eventos/eliminar/<int:pk>/', EventoDeleteView.as_view()),
+    path('eventos/', EventoListView.as_view()),
+    path('eventos/crear/', EventoCreateView.as_view()),
+    path('eventos/editar/<int:pk>/', EventoUpdateView.as_view()),
+    path('eventos/eliminar/<int:pk>/', EventoDeleteView.as_view()),
 
     # RESERVACIONES
-    path('api/reservaciones/', ReservacionListView.as_view()),
-    path('api/reservaciones/crear/', CrearReservacionView.as_view()),
+    path('reservaciones/', ReservacionListView.as_view()),
+    path('reservaciones/crear/', CrearReservacionView.as_view()),
 
     # USERS
-    path('api/usuarios/crear/', UserCreateView.as_view()),
+    path('usuarios/crear/', UserCreateView.as_view()),
 
     # DASHBOARD
-    path('api/dashboard/', DashboardView.as_view()),
+    path('dashboard/', DashboardView.as_view()),
 ]
