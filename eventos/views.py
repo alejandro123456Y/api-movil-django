@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Sum
+from django.db.models.functions import TruncDate
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -102,24 +103,45 @@ class DashboardView(APIView):
         reservas_por_evento = Reservacion.objects.values("evento__nombre").annotate(
             total=Sum("cantidad")
         )
-        eventos_por_fecha = Evento.objects.values("fecha").annotate(total=Count("id"))
+        reservas_por_fecha = (
+            Reservacion.objects.annotate(fecha=TruncDate("fecha_reservacion"))
+            .values("fecha")
+            .annotate(total=Sum("cantidad"))
+            .order_by("fecha")
+        )
         evento_top = (
             Reservacion.objects.values("evento__nombre")
             .annotate(total=Sum("cantidad"))
             .order_by("-total")
             .first()
         )
+        ocupacion_eventos = {
+            item["evento__nombre"]: item["total"] or 0 for item in reservas_por_evento
+        }
+        reservaciones_por_fecha = {
+            item["fecha"].isoformat(): item["total"] or 0 for item in reservas_por_fecha
+        }
+        total_eventos = Evento.objects.count()
+        total_reservaciones = Reservacion.objects.count()
+        total_usuarios = User.objects.count()
+        evento_mas_reservado = evento_top["evento__nombre"] if evento_top else None
 
         return Response(
             {
+                "total_eventos": total_eventos,
+                "total_reservaciones": total_reservaciones,
+                "total_usuarios": total_usuarios,
+                "evento_mas_reservado": evento_mas_reservado,
+                "ocupacion_eventos": ocupacion_eventos,
+                "reservaciones_por_fecha": reservaciones_por_fecha,
                 "totales": {
-                    "eventos": Evento.objects.count(),
-                    "reservaciones": Reservacion.objects.count(),
-                    "usuarios": User.objects.count(),
+                    "eventos": total_eventos,
+                    "reservaciones": total_reservaciones,
+                    "usuarios": total_usuarios,
                 },
                 "graficas": {
                     "reservas_por_evento": list(reservas_por_evento),
-                    "eventos_por_fecha": list(eventos_por_fecha),
+                    "reservaciones_por_fecha": list(reservas_por_fecha),
                 },
                 "top_evento": evento_top,
             }
