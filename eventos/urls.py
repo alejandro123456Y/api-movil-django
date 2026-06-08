@@ -8,6 +8,7 @@ from .views import (
     EventoListView,
     EventoUpdateView,
     ReservacionListView,
+    RegisterUserView,
     UserCreateView,
 )
 
@@ -18,6 +19,7 @@ urlpatterns = [
     path("eventos/eliminar/<int:pk>/", EventoDeleteView.as_view(), name="eventos-delete"),
     path("reservaciones/", ReservacionListView.as_view(), name="reservaciones-list"),
     path("reservaciones/crear/", CrearReservacionView.as_view(), name="reservaciones-create"),
+    path("registro/", RegisterUserView.as_view(), name="registro"),
     path("usuarios/crear/", UserCreateView.as_view(), name="usuarios-create"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
 ]

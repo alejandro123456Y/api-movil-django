@@ -22,6 +22,28 @@ class UserSerializer(serializers.ModelSerializer):
         )
 
 
+class RegisterUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(max_length=150)
+    password = serializers.CharField(write_only=True, min_length=4)
+    is_staff = serializers.BooleanField(read_only=True)
+
+    def validate_username(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("El usuario es obligatorio.")
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Este usuario ya existe.")
+        return value
+
+    def create(self, validated_data):
+        return User.objects.create_user(
+            username=validated_data["username"],
+            password=validated_data["password"],
+            is_staff=False,
+        )
+
+
 class LoginUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

@@ -4,7 +4,7 @@ from django.db.models import Count, Sum
 from django.db.models.functions import TruncDate
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -13,6 +13,7 @@ from .models import Evento, Reservacion
 from .serializers import (
     CustomTokenObtainPairSerializer,
     EventoSerializer,
+    RegisterUserSerializer,
     ReservacionSerializer,
     UserSerializer,
 )
@@ -96,6 +97,12 @@ class UserCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
 
+class RegisterUserView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterUserSerializer
+    permission_classes = [AllowAny]
+
+
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -107,6 +114,12 @@ class DashboardView(APIView):
             Reservacion.objects.annotate(fecha=TruncDate("fecha_reservacion"))
             .values("fecha")
             .annotate(total=Sum("cantidad"))
+            .order_by("fecha")
+        )
+        usuarios_por_fecha = (
+            User.objects.annotate(fecha=TruncDate("date_joined"))
+            .values("fecha")
+            .annotate(total=Count("id"))
             .order_by("fecha")
         )
         evento_top = (
@@ -121,6 +134,9 @@ class DashboardView(APIView):
         reservaciones_por_fecha = {
             item["fecha"].isoformat(): item["total"] or 0 for item in reservas_por_fecha
         }
+        usuarios_registrados_por_fecha = {
+            item["fecha"].isoformat(): item["total"] or 0 for item in usuarios_por_fecha
+        }
         total_eventos = Evento.objects.count()
         total_reservaciones = Reservacion.objects.count()
         total_usuarios = User.objects.count()
@@ -134,6 +150,7 @@ class DashboardView(APIView):
                 "evento_mas_reservado": evento_mas_reservado,
                 "ocupacion_eventos": ocupacion_eventos,
                 "reservaciones_por_fecha": reservaciones_por_fecha,
+                "usuarios_por_fecha": usuarios_registrados_por_fecha,
                 "totales": {
                     "eventos": total_eventos,
                     "reservaciones": total_reservaciones,
@@ -142,6 +159,7 @@ class DashboardView(APIView):
                 "graficas": {
                     "reservas_por_evento": list(reservas_por_evento),
                     "reservaciones_por_fecha": list(reservas_por_fecha),
+                    "usuarios_por_fecha": list(usuarios_por_fecha),
                 },
                 "top_evento": evento_top,
             }
