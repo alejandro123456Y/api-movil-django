@@ -10,6 +10,10 @@ from .views import (
     ReservacionListView,
     RegisterUserView,
     UserCreateView,
+    UserDeleteView,
+    UserDetailView,
+    UserListView,
+    UserUpdateView,
 )
 
 urlpatterns = [
@@ -20,6 +24,10 @@ urlpatterns = [
     path("reservaciones/", ReservacionListView.as_view(), name="reservaciones-list"),
     path("reservaciones/crear/", CrearReservacionView.as_view(), name="reservaciones-create"),
     path("registro/", RegisterUserView.as_view(), name="registro"),
+    path("usuarios/", UserListView.as_view(), name="usuarios-list"),
+    path("usuarios/<int:pk>/", UserDetailView.as_view(), name="usuarios-detail"),
     path("usuarios/crear/", UserCreateView.as_view(), name="usuarios-create"),
+    path("usuarios/editar/<int:pk>/", UserUpdateView.as_view(), name="usuarios-update"),
+    path("usuarios/eliminar/<int:pk>/", UserDeleteView.as_view(), name="usuarios-delete"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
 ]

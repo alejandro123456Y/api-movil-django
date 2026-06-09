@@ -8,18 +8,50 @@ from .models import Evento, Reservacion
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "password", "is_staff"]
+        fields = [
+            "id",
+            "username",
+            "email",
+            "password",
+            "first_name",
+            "last_name",
+            "is_staff",
+            "is_active",
+        ]
+        read_only_fields = ["id", "is_active"]
         extra_kwargs = {
-            "password": {"write_only": True},
+            "password": {"write_only": True, "required": False, "allow_blank": True},
             "is_staff": {"required": False},
+            "email": {"required": False, "allow_blank": True},
+            "first_name": {"required": False, "allow_blank": True},
+            "last_name": {"required": False, "allow_blank": True},
         }
 
+    def validate_username(self, value):
+        queryset = User.objects.filter(username=value)
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError("Este usuario ya existe.")
+        return value
+
     def create(self, validated_data):
-        return User.objects.create_user(
-            username=validated_data["username"],
-            password=validated_data["password"],
-            is_staff=validated_data.get("is_staff", False),
+        password = validated_data.pop("password", None)
+        user = User.objects.create_user(
+            username=validated_data.pop("username"),
+            password=password,
+            **validated_data,
         )
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
 
 
 class RegisterUserSerializer(serializers.Serializer):

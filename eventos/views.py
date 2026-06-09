@@ -4,7 +4,7 @@ from django.db.models import Count, Sum
 from django.db.models.functions import TruncDate
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -94,7 +94,43 @@ class CrearReservacionView(generics.CreateAPIView):
 class UserCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
+
+
+class UserListView(generics.ListAPIView):
+    queryset = User.objects.all().order_by("id")
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminUser]
+
+
+class UserDetailView(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminUser]
+
+
+class UserUpdateView(generics.UpdateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminUser]
+
+
+class UserDeleteView(generics.DestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminUser]
+
+    def destroy(self, request, *args, **kwargs):
+        if self.get_object().id == request.user.id:
+            return Response(
+                {"detail": "No puedes eliminar tu propio usuario administrador."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        super().destroy(request, *args, **kwargs)
+        return Response(
+            {"detail": "Usuario eliminado correctamente."},
+            status=status.HTTP_200_OK,
+        )
 
 
 class RegisterUserView(generics.CreateAPIView):
